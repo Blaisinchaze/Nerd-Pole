@@ -48,11 +48,11 @@ Rigidbody2D:
   m_Simulated: 1
   m_UseFullKinematicContacts: 0
   m_UseAutoMass: 0
-  m_Mass: 4.94
-  m_LinearDrag: 0
+  m_Mass: 5
+  m_LinearDrag: 5
   m_AngularDrag: 0.05
-  m_GravityScale: 1
-  m_Material: {fileID: 0}
+  m_GravityScale: 0
+  m_Material: {fileID: 6200000, guid: 34e1c619ab2657044afe1030ed7771ef, type: 2}
   m_Interpolate: 0
   m_SleepingMode: 1
   m_CollisionDetection: 1
@@ -70,7 +70,22 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   placingLocation: {x: 0, y: 0}
-  speed: 0.35
+  speed: 5
+  jumpForce: 1200
+  playerColour: {r: 0, g: 0, b: 0, a: 0}
+  grounded: 0
+  placingBlock: 0
+  layerMask:
+    serializedVersion: 2
+    m_Bits: 64
+  boxCastLocation: {x: 0, y: -0.41, z: 0}
+  boxCastSize: {x: 0.33, y: 0.03}
+  maxVelocityX: 4
+  maxPlacingVelocityX: 0.2
+  placeCooldownMax: 0.2
+  placeCooldownCurrent: 0
+  inAirMaterial: {fileID: 6200000, guid: 34e1c619ab2657044afe1030ed7771ef, type: 2}
+  onGroundMaterial: {fileID: 6200000, guid: c160e4d2f83e9f44783bcfed7011b399, type: 2}
 --- !u!114 &8938459929688082529
 MonoBehaviour:
   m_ObjectHideFlags: 0
