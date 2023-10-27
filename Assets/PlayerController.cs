@@ -30,6 +30,8 @@ public class PlayerController : MonoBehaviour
     public float placeCooldownMax, placeCooldownCurrent;
 
     public PhysicsMaterial2D inAirMaterial, onGroundMaterial;
+
+    public bool shield;
     // Start is called before the first frame update
     void Awake()
     {
@@ -80,18 +82,29 @@ public class PlayerController : MonoBehaviour
     }
 
     public void OnMove(InputValue _movementValue)
-    {
+    {        
         Vector2 movementVector = _movementValue.Get<Vector2>();
-        movementVector.y = 0;
-        velocity = movementVector.x * speed;
+        if (shield)
+        {
+            blocksController.BreakBlockCheck(placingLocation + Vector2Int.RoundToInt(movementVector));
+        }
+        else
+        {
+            movementVector.y = 0;
+            velocity = movementVector.x * speed;
+        }
+
+
     }
     public void OnPlaceLeft()
     {
+        if (shield) return;
         blocksController.CanPlaceBlock(placingLocation + new Vector2Int(-1,-1));
     }
     public void OnPlaceDown()
     {
-        if (!grounded) {return; }
+
+        if (!grounded || shield) {return; }
         if (blocksController.CheckBlockInDirection(placingLocation, Vector2Int.up)) { return; }
         if (blocksController.CanPlaceBlock(placingLocation, 0.35f))
         {
@@ -103,7 +116,16 @@ public class PlayerController : MonoBehaviour
     }
     public void OnPlaceRight()
     {
+        if (shield) return;
         blocksController.CanPlaceBlock(placingLocation + new Vector2Int(1, -1));
+    }
+
+    public void OnShield(InputValue _pressedValue)
+    {
+        float value = _pressedValue.Get<float>();
+        shield = value > 0;
+        rb.velocity = Vector2.zero;
+        velocity = 0;
     }
 
     public void UpdateColour(Color _color)
