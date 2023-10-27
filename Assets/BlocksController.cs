@@ -9,6 +9,7 @@ public class BlocksController : MonoBehaviour
 {
     public GameObject blockPrefab;
     public GameObject floorPrefab;
+    public GameObject blockBreakPrefab;
     Dictionary<Vector2Int, BlockInformation> placedBlockLocations = new Dictionary<Vector2Int, BlockInformation>();
 
     [SerializeField]
@@ -17,20 +18,23 @@ public class BlocksController : MonoBehaviour
     int floorLength;
 
     float blockDestructionTimerCurrent;
-    float blockDestructionTimerMax = 1f;
+    float blockDestructionTimerMax = 0.3f;
 
-    //private List<BlockInformation> nextBlocksToBreak = new List<BlockInformation>();
+    private List<Vector2Int> nextBlocksToBreak = new List<Vector2Int>();
+    private int idCount;
 
+    [System.Serializable]
     public class BlockInformation
     {
+        public int id;
         public Vector2Int location;
         public bool floor;
         public bool nextToBreak;
         public bool markedForDeath;
-        private List<BlockInformation> connectedBlocks = new List<BlockInformation>();
         private GameObject blockBody;
-        public BlockInformation(Vector2Int _location, bool _floor,bool _nextToBreak, bool _markedForDeath)
+        public BlockInformation(int _id,Vector2Int _location, bool _floor,bool _nextToBreak, bool _markedForDeath)
         {
+            id = _id;
             location = _location;
             floor = _floor;
             nextToBreak = _nextToBreak;
@@ -41,48 +45,14 @@ public class BlocksController : MonoBehaviour
             blockBody = _body;
         }
 
-        public void AddNeighbour(BlockInformation _value)
-        {
-            if (_value.location == location || connectedBlocks.Contains(_value)) return;
 
-            
-
-            connectedBlocks.Add(_value);
-            _value.AddNeighbour(this);
-            Debug.Log("Block at " + location + " is connected to " + connectedBlocks.Count);
-
-        }
-
-        public void UpdateNeighbour(BlockInformation _value)
-        {
-            if (_value.location == location || connectedBlocks.Contains(_value)) return;
-
-            connectedBlocks.Add(_value);
-        }
-        public List<BlockInformation> ReturnNeighbours()
-        {
-            return connectedBlocks;
-        }
         public void DestroyBlock()
         {
-            Debug.Log("Destroy Block "+ location);
-            foreach (var item in connectedBlocks)
-            {
-                print("destroy next the block at " + item.location);
-                if (item.markedForDeath) { nextToBreak = true; }
-                RemoveNeighbour(this);
-            }
+            Debug.Log("Destroy Block " + location);
+
             Destroy(blockBody);
         }
-        public void RemoveNeighbour(BlockInformation _value)
-        {
-            if (!connectedBlocks.Contains(_value))
-            {
-                return;
-            }
-            connectedBlocks.Remove(_value);
-        }
-            
+
     }
 
     void Start()
@@ -90,9 +60,12 @@ public class BlocksController : MonoBehaviour
 
         for (int i = -(floorLength/2); i < floorLength/2; i++)
         {
-            placedBlockLocations.Add(new Vector2Int(i,1), new BlockInformation(new Vector2Int(i, 1), true, false, false));
+            placedBlockLocations.Add(new Vector2Int(i,1), new BlockInformation(idCount++,new Vector2Int(i, 1), true, false, false));
             Instantiate(floorPrefab, new Vector3(i, 1, 0), Quaternion.identity, this.transform);
         }
+
+        placedBlockLocations.Add(new Vector2Int(0, 6), new BlockInformation(idCount++, new Vector2Int(0, 6), true, false, false));
+        Instantiate(floorPrefab, new Vector3(0, 6, 0), Quaternion.identity, this.transform);
         Debug.Log("Floor Placed");
     }
 
@@ -116,14 +89,21 @@ public class BlocksController : MonoBehaviour
         }
 
 
-        placedBlockLocations.Add(_location, new BlockInformation(_location, false, false,false));
+        placedBlockLocations.Add(_location, new BlockInformation(idCount++,_location, false, false,true));
 
-        if(CheckBlockInDirection(_location, Vector2Int.up)) { placedBlockLocations[_location].AddNeighbour(placedBlockLocations[_location + Vector2Int.up]); }
-        if(CheckBlockInDirection(_location, Vector2Int.down)) {  placedBlockLocations[_location].AddNeighbour(placedBlockLocations[_location + Vector2Int.down]); }
-        if(CheckBlockInDirection(_location, Vector2Int.left)) {  placedBlockLocations[_location].AddNeighbour(placedBlockLocations[_location + Vector2Int.left]); }
-        if(CheckBlockInDirection(_location, Vector2Int.right)) {  placedBlockLocations[_location].AddNeighbour(placedBlockLocations[_location + Vector2Int.right]); }
-
-
+        bool noneForDeath = true;
+        foreach (var item in ReturnNeighbourBlocks(_location))
+        {
+            if (placedBlockLocations[item].markedForDeath)
+            {
+                noneForDeath = false;
+            }
+            else
+            {
+                placedBlockLocations[_location].markedForDeath = false;
+            }
+        }
+        if(noneForDeath == false && placedBlockLocations[_location].markedForDeath == false) { FixBlocks(_location); }
         Vector3Int _placeLocation = new Vector3Int(_location.x, _location.y, 0);
         if (_delay > 0)
         {
@@ -142,65 +122,135 @@ public class BlocksController : MonoBehaviour
     {
 
         if (!placedBlockLocations.ContainsKey(_location) || placedBlockLocations[_location].floor) { return false; }
-        Debug.Log("Breaking Block at " + placedBlockLocations[_location].location);
-        List<BlockInformation> _checkedBlocks = new List<BlockInformation>();
-        List<BlockInformation> _blocksToCheck = placedBlockLocations[_location].ReturnNeighbours();
-        int cycle = 0;
-        bool _destroyBlocks = true;
-        while (_blocksToCheck.Count > 0)
+
+        List<Vector2Int> _startingBlocks = ReturnNeighbourBlocks(_location);
+        foreach (var directionToCheck in _startingBlocks)
         {
-            if (_blocksToCheck[_blocksToCheck.Count - 1].floor == true)
+            bool _destroyBlocks = true;
+            List<Vector2Int> _checkedBlocks = new List<Vector2Int>();
+            _checkedBlocks.Add(_location);
+            List<Vector2Int> _blocksToCheck = new List<Vector2Int>(); 
+            _blocksToCheck.Add(directionToCheck);
+            while (_blocksToCheck.Count > 0)
             {
-                _destroyBlocks = false;
-                break;
-            }
-
-            List<BlockInformation> _tempBlocks = new List<BlockInformation>();
-            foreach (var item in _blocksToCheck[_blocksToCheck.Count - 1].ReturnNeighbours())
-            {
-                if (_checkedBlocks.Contains(item))
+                if (placedBlockLocations[_blocksToCheck[_blocksToCheck.Count - 1]].floor == true)
                 {
-                    continue;
+                    _destroyBlocks = false;
+                    break;
                 }
-                else
+
+                List<Vector2Int> _tempBlocks = new List<Vector2Int>();
+                foreach (var item in ReturnNeighbourBlocks(placedBlockLocations[_blocksToCheck[_blocksToCheck.Count - 1]].location))
                 {
-                    _tempBlocks.Add(item);
+                    if (_checkedBlocks.Contains(item))
+                    {
+                        continue;
+                    }
+                    else
+                    {
+                        Vector2Int location = item;
+                        _tempBlocks.Add(item);
+                    }
+                }
+
+                _checkedBlocks.Add(_blocksToCheck[_blocksToCheck.Count - 1]);
+                _blocksToCheck.RemoveAt(_blocksToCheck.Count - 1);
+
+                foreach (var item in _tempBlocks)
+                {
+                    _blocksToCheck.Add(item);
                 }
             }
 
-            _checkedBlocks.Add(_blocksToCheck[_blocksToCheck.Count - 1]);
-            _blocksToCheck.RemoveAt(_blocksToCheck.Count - 1);
-            foreach (var item in _tempBlocks)
+            if (_destroyBlocks == true)
             {
-                _blocksToCheck.Add(item);
-            }
-            cycle++;
-            Debug.Log("Cycle - " + cycle);
-        }
-
-        if (_destroyBlocks == true)
-        {
-            foreach (var item in _checkedBlocks)
-            {
-                item.markedForDeath = true;
+                foreach (var item in _checkedBlocks)
+                {
+                    placedBlockLocations[item].markedForDeath = true;
+                }
+                placedBlockLocations[directionToCheck].nextToBreak = true;
+                nextBlocksToBreak.Add(directionToCheck);
             }
         }
-
-
+        Instantiate(blockBreakPrefab, new Vector3(_location.x, _location.y), Quaternion.identity);
         placedBlockLocations[_location].DestroyBlock();
         placedBlockLocations.Remove(_location);
         return true;
 
     }
 
+    public void FixBlocks(Vector2Int _location)
+    {
+        List<Vector2Int> _startingBlocks = ReturnNeighbourBlocks(_location);
+        foreach (var directionToCheck in _startingBlocks)
+        {
+            if(placedBlockLocations[directionToCheck].markedForDeath == false)
+            {
+                continue;
+            }
+
+            List<Vector2Int> _checkedBlocks = new List<Vector2Int>();
+            _checkedBlocks.Add(_location);
+            List<Vector2Int> _blocksToCheck = new List<Vector2Int>();
+            _blocksToCheck.Add(directionToCheck);
+            while (_blocksToCheck.Count > 0)
+            {
+                List<Vector2Int> _tempBlocks = new List<Vector2Int>();
+                foreach (var item in ReturnNeighbourBlocks(placedBlockLocations[_blocksToCheck[_blocksToCheck.Count - 1]].location))
+                {
+                    if (_checkedBlocks.Contains(item))
+                    {
+                        continue;
+                    }
+                    else
+                    {
+                        Vector2Int location = item;
+                        _tempBlocks.Add(item);
+                    }
+                }
+
+                _checkedBlocks.Add(_blocksToCheck[_blocksToCheck.Count - 1]);
+                _blocksToCheck.RemoveAt(_blocksToCheck.Count - 1);
+
+                foreach (var item in _tempBlocks)
+                {
+                    _blocksToCheck.Add(item);
+                }
+            }
+            foreach (var item in _checkedBlocks)
+            {
+                placedBlockLocations[item].markedForDeath = false;
+                placedBlockLocations[item].nextToBreak = false;
+                if (nextBlocksToBreak.Contains(item))
+                {
+                    nextBlocksToBreak.Remove(item);
+                }
+            }
+        }
+    }
+
     private void BreakBlocks()
     {
-        foreach (var item in placedBlockLocations)
+        List<Vector2Int> _tempList = new List<Vector2Int>();
+        for (int i = nextBlocksToBreak.Count - 1; i >= 0 ; i--)
         {
-            if(item.Value.nextToBreak)
+            _tempList.AddRange(ReturnNeighbourBlocks(nextBlocksToBreak[i]));
+            if (placedBlockLocations.ContainsKey(nextBlocksToBreak[i]))
             {
-                item.Value.DestroyBlock() ;
-                placedBlockLocations.Remove(item.Key);
+                Instantiate(blockBreakPrefab, new Vector3(nextBlocksToBreak[i].x, nextBlocksToBreak[i].y), Quaternion.identity);
+                placedBlockLocations[nextBlocksToBreak[i]].DestroyBlock();
+                placedBlockLocations.Remove(nextBlocksToBreak[i]);
+            }
+            nextBlocksToBreak.RemoveAt(i);
+
+        }
+
+        foreach (var item in _tempList)
+        {
+            if (placedBlockLocations.ContainsKey(item))
+            {
+                placedBlockLocations[item].nextToBreak = true;
+                nextBlocksToBreak.Add(item);
             }
         }
     }
@@ -216,5 +266,15 @@ public class BlocksController : MonoBehaviour
         Vector2Int _placeLocation = new Vector2Int(_location.x, _location.y);
         GameObject _newBlock = Instantiate(blockPrefab, _location, Quaternion.identity, this.transform);
         placedBlockLocations[_placeLocation].SetBlockBody(_newBlock);
+    }
+
+    public List<Vector2Int> ReturnNeighbourBlocks(Vector2Int _blockLocation)
+    {
+        List<Vector2Int> _tempList = new List<Vector2Int>();
+        if(CheckBlockInDirection(_blockLocation, Vector2Int.up)) { _tempList.Add(placedBlockLocations[_blockLocation + Vector2Int.up].location); }
+        if(CheckBlockInDirection(_blockLocation, Vector2Int.down)) {  _tempList.Add(placedBlockLocations[_blockLocation + Vector2Int.down].location);}
+        if(CheckBlockInDirection(_blockLocation, Vector2Int.left)) {  _tempList.Add(placedBlockLocations[_blockLocation + Vector2Int.left].location);}
+        if(CheckBlockInDirection(_blockLocation, Vector2Int.right)) { _tempList.Add(placedBlockLocations[_blockLocation + Vector2Int.right].location);}
+        return _tempList;
     }
 }

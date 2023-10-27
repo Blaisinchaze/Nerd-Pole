@@ -84,6 +84,8 @@ public class PlayerController : MonoBehaviour
     public void OnMove(InputValue _movementValue)
     {        
         Vector2 movementVector = _movementValue.Get<Vector2>();
+        if(Mathf.Abs(movementVector.x) < 0.2f) { movementVector.x = 0f; }
+        if(Mathf.Abs(movementVector.y) < 0.2f) { movementVector.y = 0f; }
         if (shield)
         {
             blocksController.BreakBlockCheck(placingLocation + Vector2Int.RoundToInt(movementVector));
