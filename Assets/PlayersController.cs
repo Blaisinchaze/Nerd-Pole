@@ -11,6 +11,8 @@ public class PlayersController : MonoBehaviour
     public List<Color> availableColors = new List<Color>();
     private GameplayState currentState;
     private PlayerInputManager inputManager;
+    private List<PlayerController> connectedPlayers = new List<PlayerController>();
+    public static PlayersController Instance;
 
     private void OnEnable()
     {
@@ -24,11 +26,20 @@ public class PlayersController : MonoBehaviour
     void GameplayStateChange(GameplayState _gameplayState)
     {
         currentState = _gameplayState;
-        if (currentState == GameplayState.LOBBY) { inputManager.EnableJoining(); } else { inputManager.DisableJoining(); }
+        if (currentState == GameplayState.LOBBY) { inputManager.EnableJoining(); RespawnPlayers(); } else { inputManager.DisableJoining(); }
     }
     // Start is called before the first frame update
-    void Start()
+    private void Awake()
     {
+        if (Instance == null)
+        {
+            Instance = this;
+            DontDestroyOnLoad(this.gameObject);
+        }
+        else
+        {
+            Destroy(this.gameObject);
+        }
         inputManager = GetComponent<PlayerInputManager>();
         camController = Camera.main.GetComponent<CameraController>();
     }
@@ -39,12 +50,23 @@ public class PlayersController : MonoBehaviour
         
     }
 
+    public void RespawnPlayers()
+    {
+        Debug.Log("Respawning " + connectedPlayers.Count + " players");
+        foreach (var item in connectedPlayers)
+        {
+            item.Live();
+        }
+    }
+
     public void OnPlayerJoined(PlayerInput playerInput)
     {
 
         Debug.Log("Player " + playerInput.name + " joined");
         camController.PlayerJoin(playerInput.gameObject);
         playerInput.GetComponent<PlayerController>().UpdateColour(availableColors[0]);
+        //GameplayController.Instance.connectedPlayers.Add(playerInput, availableColors[0]);
+        connectedPlayers.Add(playerInput.GetComponent<PlayerController>());
         availableColors.RemoveAt(0);
 
     }
@@ -55,5 +77,9 @@ public class PlayersController : MonoBehaviour
         Debug.Log("Player " + playerInput.name + " left");
         playerInput.GetComponent<PlayerController>().Die();
         camController.PlayerLeave(playerInput.gameObject);
+        //GameplayController.Instance.connectedPlayers.Remove(playerInput);
+        connectedPlayers.Remove(playerInput.GetComponent<PlayerController>());
     }
+
+
 }

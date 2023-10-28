@@ -36,6 +36,8 @@ public class PlayerController : MonoBehaviour
     public GameObject deathPS;
     private GameplayState currentState;
 
+    public GameObject body;
+    bool alive = true;
     private void OnEnable()
     {
         GameplayController.OnGameplayStateChange += GameplayStateChange;
@@ -48,11 +50,16 @@ public class PlayerController : MonoBehaviour
     void GameplayStateChange(GameplayState _gameplayState)
     {
         currentState = _gameplayState;
+        if(currentState == GameplayState.LOBBY)
+        {
+            blocksController = Object.FindObjectOfType<BlocksController>();
+        }
     }
 
     // Start is called before the first frame update
     void Awake()
     {
+        DontDestroyOnLoad(this);
         rb = GetComponent<Rigidbody2D>();
         blocksController = Object.FindObjectOfType<BlocksController>();
         placingLocation = new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.y));
@@ -69,7 +76,10 @@ public class PlayerController : MonoBehaviour
 
     private void FixedUpdate()
     {
-
+        if(currentState != GameplayState.LOBBY && currentState != GameplayState.GAME)
+        {
+            return;
+        }
         Collider2D hit = Physics2D.OverlapBox(transform.position + boxCastLocation, boxCastSize,0f, layerMask);
         grounded = (hit != null);
         if(grounded && placingBlock && placeCooldownCurrent <= 0) { placingBlock = false; }
@@ -98,11 +108,23 @@ public class PlayerController : MonoBehaviour
 
         
     }
-
+    public void Live()
+    {
+        alive = true;
+        transform.position = new Vector3(0, 5, 0);
+        body.SetActive(true);
+    }
     public void Die()
     {
-        Instantiate(deathPS, transform.position, Quaternion.identity);
-        Destroy(this.gameObject);
+        if (alive)
+        {
+            Instantiate(deathPS, transform.position, Quaternion.identity);
+            //gameObject.SetActive(false);
+            body.SetActive(false);
+            //Destroy(this.gameObject);
+            alive = false;
+        }
+
     }
     public void OnMove(InputValue _movementValue)
     {        
@@ -166,4 +188,16 @@ public class PlayerController : MonoBehaviour
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireCube(transform.position + boxCastLocation, boxCastSize);
     }
+
+
+    //private void OnTriggerEnter2D(Collider2D collision)
+    //{
+    //    Debug.Log(collision.gameObject.name);
+    //    if (collision.transform.tag == "Goal")
+    //    {
+    //        Debug.Log("VictoryFound");
+    //        GameplayController.Instance.ChangeState(GameplayState.WIN);
+    //    }
+        
+    //}
 }

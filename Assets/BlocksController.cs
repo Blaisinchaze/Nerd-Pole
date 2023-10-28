@@ -36,6 +36,10 @@ public class BlocksController : MonoBehaviour
     void GameplayStateChange(GameplayState _gameplayState)
     {
         currentState = _gameplayState;
+        if(currentState == GameplayState.LOBBY)
+        {
+
+        }
     }
 
     [System.Serializable]

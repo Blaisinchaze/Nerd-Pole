@@ -18,6 +18,22 @@ public class DebugCanvasController : MonoBehaviour
         GameplayController.OnGameplayStateChange -= GameplayStateChange;
     }
 
+    private void Awake()
+    {
+        if(Object.FindObjectsOfType<DebugCanvasController>().Length > 1)
+        {
+            Destroy(this.gameObject);
+        }
+        else
+        {
+            DontDestroyOnLoad(this);
+        }
+    }
+    private void Start()
+    {
+        
+    }
+
     void GameplayStateChange(GameplayState _gameplayState)
     {
         currentState = _gameplayState;

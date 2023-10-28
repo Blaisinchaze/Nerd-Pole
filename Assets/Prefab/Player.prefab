@@ -15,7 +15,7 @@ GameObject:
   - component: {fileID: 8938459929688082528}
   m_Layer: 0
   m_Name: Player
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -87,7 +87,8 @@ MonoBehaviour:
   inAirMaterial: {fileID: 6200000, guid: 34e1c619ab2657044afe1030ed7771ef, type: 2}
   onGroundMaterial: {fileID: 6200000, guid: c160e4d2f83e9f44783bcfed7011b399, type: 2}
   shield: 0
-  deathPS: {fileID: 6953013293090846994, guid: c815638004a9f06408bfbe94b237e1d0, type: 3}
+  deathPS: {fileID: 6953013293090846994, guid: 13360e00ef386c844863c25034af456b, type: 3}
+  body: {fileID: 8938459929842374375}
 --- !u!114 &8938459929688082529
 MonoBehaviour:
   m_ObjectHideFlags: 0
