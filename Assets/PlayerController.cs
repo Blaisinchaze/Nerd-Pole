@@ -32,6 +32,24 @@ public class PlayerController : MonoBehaviour
     public PhysicsMaterial2D inAirMaterial, onGroundMaterial;
 
     public bool shield;
+
+    public GameObject deathPS;
+    private GameplayState currentState;
+
+    private void OnEnable()
+    {
+        GameplayController.OnGameplayStateChange += GameplayStateChange;
+    }
+    private void OnDisable()
+    {
+        GameplayController.OnGameplayStateChange -= GameplayStateChange;
+    }
+
+    void GameplayStateChange(GameplayState _gameplayState)
+    {
+        currentState = _gameplayState;
+    }
+
     // Start is called before the first frame update
     void Awake()
     {
@@ -81,6 +99,11 @@ public class PlayerController : MonoBehaviour
         
     }
 
+    public void Die()
+    {
+        Instantiate(deathPS, transform.position, Quaternion.identity);
+        Destroy(this.gameObject);
+    }
     public void OnMove(InputValue _movementValue)
     {        
         Vector2 movementVector = _movementValue.Get<Vector2>();
@@ -100,13 +123,13 @@ public class PlayerController : MonoBehaviour
     }
     public void OnPlaceLeft()
     {
-        if (shield) return;
+        if (shield || currentState != GameplayState.GAME) return;
         blocksController.CanPlaceBlock(placingLocation + new Vector2Int(-1,-1));
     }
     public void OnPlaceDown()
     {
 
-        if (!grounded || shield) {return; }
+        if (!grounded || shield || currentState != GameplayState.GAME) {return; }
         if (blocksController.CheckBlockInDirection(placingLocation, Vector2Int.up)) { return; }
         if (blocksController.CanPlaceBlock(placingLocation, 0.35f))
         {
@@ -118,7 +141,7 @@ public class PlayerController : MonoBehaviour
     }
     public void OnPlaceRight()
     {
-        if (shield) return;
+        if (shield || currentState != GameplayState.GAME) return;
         blocksController.CanPlaceBlock(placingLocation + new Vector2Int(1, -1));
     }
 

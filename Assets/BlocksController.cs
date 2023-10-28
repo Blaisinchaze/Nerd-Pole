@@ -22,6 +22,21 @@ public class BlocksController : MonoBehaviour
 
     private List<Vector2Int> nextBlocksToBreak = new List<Vector2Int>();
     private int idCount;
+    private GameplayState currentState;
+
+    private void OnEnable()
+    {
+        GameplayController.OnGameplayStateChange += GameplayStateChange;
+    }
+    private void OnDisable()
+    {
+        GameplayController.OnGameplayStateChange -= GameplayStateChange;
+    }
+
+    void GameplayStateChange(GameplayState _gameplayState)
+    {
+        currentState = _gameplayState;
+    }
 
     [System.Serializable]
     public class BlockInformation
@@ -71,6 +86,7 @@ public class BlocksController : MonoBehaviour
 
     void Update()
     {
+        if (currentState != GameplayState.GAME) return;
         blockDestructionTimerCurrent -= Time.deltaTime;
         if(blockDestructionTimerCurrent < 0)
         {

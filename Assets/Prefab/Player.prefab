@@ -86,6 +86,8 @@ MonoBehaviour:
   placeCooldownCurrent: 0
   inAirMaterial: {fileID: 6200000, guid: 34e1c619ab2657044afe1030ed7771ef, type: 2}
   onGroundMaterial: {fileID: 6200000, guid: c160e4d2f83e9f44783bcfed7011b399, type: 2}
+  shield: 0
+  deathPS: {fileID: 6953013293090846994, guid: c815638004a9f06408bfbe94b237e1d0, type: 3}
 --- !u!114 &8938459929688082529
 MonoBehaviour:
   m_ObjectHideFlags: 0
