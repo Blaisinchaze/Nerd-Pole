@@ -19,6 +19,7 @@ public class GoalController : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D other)
     {
+        if (GameplayController.Instance.gameState != GameplayState.GAME) return;
         Debug.Log(other.gameObject.name);
         if (other.transform.tag == "Player")
         {

@@ -32,6 +32,7 @@ public class LavaController : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
+        if (currentState != GameplayState.GAME) return;
         if (collision.transform.CompareTag("Player"))
         {
             collision.gameObject.GetComponent<PlayerController>().Die();

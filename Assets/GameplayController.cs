@@ -35,13 +35,13 @@ public class GameplayController : MonoBehaviour
     void Start()
     {
 
-        OnGameplayStateChange.Invoke(gameState);
+        ChangeState(gameState);
     }
 
-    // Update is called once per frame
-    void Update()
+    public void WinnerFound(PlayerController _winner)
     {
-        
+        Debug.Log("Winner is " + _winner);
+        ChangeState(GameplayState.WIN);
     }
 
     public void ChangeState(GameplayState _nextState)
@@ -52,6 +52,7 @@ public class GameplayController : MonoBehaviour
         //{
         //    GameObject.FindObjectOfType<PlayersController>().RespawnPlayers(connectedPlayers);
         //}
+        if(gameState == GameplayState.WIN) { StartCoroutine(WaitForStateChange(GameplayState.RESET)); }
         if (gameState == GameplayState.RESET) { StartCoroutine(ResetGameScene()); }
     }
     public void IncrementState(int _amountToIncrement)
@@ -67,6 +68,11 @@ public class GameplayController : MonoBehaviour
         return (input % divisor + divisor) % divisor;
     }
 
+    IEnumerator WaitForStateChange(GameplayState _stateToChangeTo)
+    {
+        yield return new WaitForSeconds(2);
+        ChangeState(_stateToChangeTo);
+    }
     IEnumerator ResetGameScene()
     {
         yield return new WaitForSeconds(1);

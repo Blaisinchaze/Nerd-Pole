@@ -633,6 +633,7 @@ MonoBehaviour:
   blockBreakPrefab: {fileID: 6953013293090846994, guid: c815638004a9f06408bfbe94b237e1d0, type: 3}
   startingFloorBlock: {x: -10, y: 0}
   floorLength: 100
+  skyIslands: 100
 --- !u!4 &554529574
 Transform:
   m_ObjectHideFlags: 0
@@ -737,7 +738,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0d9c7c2dfdd90f4458896db5b98313c9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  playerPrefab: {fileID: 0}
   availableColors:
   - {r: 1, g: 0, b: 0, a: 1}
   - {r: 0, g: 0.32156864, b: 1, a: 1}
@@ -747,6 +747,7 @@ MonoBehaviour:
   - {r: 0.42491817, g: 0, b: 1, a: 1}
   - {r: 0, g: 0.78842807, b: 1, a: 1}
   - {r: 1, g: 0.3558252, b: 0, a: 1}
+  connectedPlayers: []
 --- !u!1 &619394800
 GameObject:
   m_ObjectHideFlags: 0

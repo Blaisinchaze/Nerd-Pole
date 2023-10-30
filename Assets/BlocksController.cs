@@ -24,6 +24,8 @@ public class BlocksController : MonoBehaviour
     private int idCount;
     private GameplayState currentState;
 
+    public int skyIslands;
+
     private void OnEnable()
     {
         GameplayController.OnGameplayStateChange += GameplayStateChange;
@@ -83,8 +85,11 @@ public class BlocksController : MonoBehaviour
             Instantiate(floorPrefab, new Vector3(i, 1, 0), Quaternion.identity, this.transform);
         }
 
-        placedBlockLocations.Add(new Vector2Int(0, 6), new BlockInformation(idCount++, new Vector2Int(0, 6), true, false, false));
-        Instantiate(floorPrefab, new Vector3(0, 6, 0), Quaternion.identity, this.transform);
+        SpawnRandomSkyIslands();
+
+
+        //placedBlockLocations.Add(new Vector2Int(0, 6), new BlockInformation(idCount++, new Vector2Int(0, 6), true, false, false));
+        //Instantiate(floorPrefab, new Vector3(0, 6, 0), Quaternion.identity, this.transform);
         Debug.Log("Floor Placed");
     }
 
@@ -97,6 +102,21 @@ public class BlocksController : MonoBehaviour
             BreakBlocks();
             blockDestructionTimerCurrent = blockDestructionTimerMax;
         }
+    }
+
+    void SpawnRandomSkyIslands()
+    {
+        for (int i = 0; i < skyIslands; i++)
+        {
+            int x, y;
+            x = Random.Range(-16, 16);
+            y = Random.Range(10, 50);
+            Vector2Int _blockLocation = new Vector2Int(x, y);
+            if (placedBlockLocations.ContainsKey(_blockLocation)) continue;
+            placedBlockLocations.Add(_blockLocation, new BlockInformation(idCount++, _blockLocation, true, false, false));
+            Instantiate(floorPrefab, new Vector3(x, y, 0), Quaternion.identity, this.transform);
+        }
+
     }
 
     public bool CanPlaceBlock(Vector2Int _location, float _delay = 0)

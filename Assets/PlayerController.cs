@@ -3,10 +3,15 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+public enum PlayerState { SPAWN, DEAD,DESPAWN, NULL}
+public enum PlayerAimDirection { NONE,LEFT,DOWN,RIGHT,NULL }
+
 public class PlayerController : MonoBehaviour
 {
     [SerializeField]
-    Vector2Int placingLocation;
+    Vector2Int currentLocation;
+    PlayerAimDirection currentPlacingDirection;
+
     Rigidbody2D rb;
     float velocity;
     BlocksController blocksController;
@@ -34,10 +39,15 @@ public class PlayerController : MonoBehaviour
     public bool shield;
 
     public GameObject deathPS;
-    private GameplayState currentState;
+    private GameplayState currentGameState;
 
     public GameObject body;
-    bool alive = true;
+
+    private PlayerState currentPlayerState;
+    public delegate void PlayerStateChange(PlayerController playerController, PlayerState playerState);
+    public static event PlayerStateChange OnPlayerStateChange;
+
+
     private void OnEnable()
     {
         GameplayController.OnGameplayStateChange += GameplayStateChange;
@@ -49,40 +59,49 @@ public class PlayerController : MonoBehaviour
 
     void GameplayStateChange(GameplayState _gameplayState)
     {
-        currentState = _gameplayState;
-        if(currentState == GameplayState.LOBBY)
+        currentGameState = _gameplayState;
+        if (currentGameState == GameplayState.LOBBY)
         {
-            blocksController = Object.FindObjectOfType<BlocksController>();
+            InitialisePlayer();
         }
+    }
+
+    void InitialisePlayer()
+    {
+        DontDestroyOnLoad(this);
+        rb = GetComponent<Rigidbody2D>();
+        blocksController = Object.FindObjectOfType<BlocksController>();
+        currentLocation = new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.y));
+        groundedDistance = (GetComponent<CapsuleCollider2D>().size.y / 2) + 0.05f;
+        placeCooldownCurrent = placeCooldownMax;
+        currentPlayerState = PlayerState.SPAWN;
+        PlayerStateHasChange();
     }
 
     // Start is called before the first frame update
     void Awake()
     {
-        DontDestroyOnLoad(this);
-        rb = GetComponent<Rigidbody2D>();
-        blocksController = Object.FindObjectOfType<BlocksController>();
-        placingLocation = new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.y));
-        groundedDistance = (GetComponent<CapsuleCollider2D>().size.y/2) + 0.05f;
-        placeCooldownCurrent = placeCooldownMax;
+        InitialisePlayer();
     }
 
     // Update is called once per frame
     void Update()
     {
-        placeCooldownCurrent -= Time.deltaTime;
-        placingLocation = new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt( transform.position.y) );
+        //Count Down Cooldown On Placing Objects
+        BlockPlaceCheck();
+        ShieldCheck();
+
     }
 
     private void FixedUpdate()
     {
-        if(currentState != GameplayState.LOBBY && currentState != GameplayState.GAME)
+        if (currentGameState != GameplayState.LOBBY && currentGameState != GameplayState.GAME)
         {
             return;
         }
-        Collider2D hit = Physics2D.OverlapBox(transform.position + boxCastLocation, boxCastSize,0f, layerMask);
+        Collider2D hit = Physics2D.OverlapBox(transform.position + boxCastLocation, boxCastSize, 0f, layerMask);
         grounded = (hit != null);
-        if(grounded && placingBlock && placeCooldownCurrent <= 0) { placingBlock = false; }
+        if (grounded && placingBlock && placeCooldownCurrent <= 0) { placingBlock = false; }
         rb.sharedMaterial = grounded ? onGroundMaterial : inAirMaterial;
 
         Vector2 tempVelocity = Vector2.zero;
@@ -91,7 +110,7 @@ public class PlayerController : MonoBehaviour
         {
             tempVelocity.y = 5;
         }
-        else 
+        else
         {
             if (grounded)
             {
@@ -102,69 +121,106 @@ public class PlayerController : MonoBehaviour
                 tempVelocity.y = Mathf.Clamp(rb.velocity.y - 1, -10, 10);
             }
         }
-        //tempVelocity.y = placingBlock && placeCooldownCurrent >= 0 ? 3 : rb.velocity.y;
         rb.velocity = tempVelocity;
 
 
-        
+
     }
-    public void Live()
+    void ShieldCheck()
     {
-        alive = true;
+
+    }
+
+    public void BlockPlaceCheck()
+    {
+        if(placeCooldownCurrent >= 0)
+        {
+            placeCooldownCurrent -= Time.deltaTime;
+            return;
+        }
+        if (currentPlacingDirection == PlayerAimDirection.NONE || shield || !grounded || currentGameState != GameplayState.GAME) return;
+        currentLocation = new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.y));
+        switch (currentPlacingDirection)
+        {
+            case PlayerAimDirection.LEFT:
+                blocksController.CanPlaceBlock(currentLocation + new Vector2Int(-1, -1));
+                break;
+            case PlayerAimDirection.DOWN:
+                if (blocksController.CheckBlockInDirection(currentLocation, Vector2Int.up)) { return; }
+                if (blocksController.CanPlaceBlock(currentLocation, 0.35f))
+                {
+                    placingBlock = true;
+                    rb.velocity += new Vector2(0, -rb.velocity.y);
+                }
+                break;
+            case PlayerAimDirection.RIGHT:
+                blocksController.CanPlaceBlock(currentLocation + new Vector2Int(1, -1));
+                break;
+            default:
+                break;
+        }
+        placeCooldownCurrent = placeCooldownMax;
+    }
+    public void Respawn()
+    {
         transform.position = new Vector3(0, 5, 0);
         body.SetActive(true);
+        currentPlayerState = PlayerState.SPAWN;
+        PlayerStateHasChange();
     }
     public void Die()
     {
-        if (alive)
-        {
-            Instantiate(deathPS, transform.position, Quaternion.identity);
-            //gameObject.SetActive(false);
-            body.SetActive(false);
-            //Destroy(this.gameObject);
-            alive = false;
-        }
+        Instantiate(deathPS, transform.position, Quaternion.identity);
+        body.SetActive(false);
+        currentPlayerState = PlayerState.DEAD;
+        PlayerStateHasChange();
 
     }
+    public void Despawn()
+    {
+        currentPlayerState = PlayerState.DESPAWN;
+        PlayerStateHasChange();
+    }
+
+    private void PlayerStateHasChange()
+    {
+        OnPlayerStateChange.Invoke(this, currentPlayerState);
+    }
     public void OnMove(InputValue _movementValue)
-    {        
+    {
         Vector2 movementVector = _movementValue.Get<Vector2>();
-        if(Mathf.Abs(movementVector.x) < 0.2f) { movementVector.x = 0f; }
-        if(Mathf.Abs(movementVector.y) < 0.2f) { movementVector.y = 0f; }
+        if (Mathf.Abs(movementVector.x) < 0.2f) { movementVector.x = 0f; }
+        if (Mathf.Abs(movementVector.y) < 0.2f) { movementVector.y = 0f; }
+
+        currentLocation = new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.y));
         if (shield)
         {
-            blocksController.BreakBlockCheck(placingLocation + Vector2Int.RoundToInt(movementVector));
+            blocksController.BreakBlockCheck(currentLocation + Vector2Int.RoundToInt(movementVector));
         }
         else
         {
-            movementVector.y = 0;
             velocity = movementVector.x * speed;
         }
 
 
     }
-    public void OnPlaceLeft()
+    public void OnPlaceLeft(InputValue _pressedValue)
     {
-        if (shield || currentState != GameplayState.GAME) return;
-        blocksController.CanPlaceBlock(placingLocation + new Vector2Int(-1,-1));
+        OnChangeTargetPlaceCheck(PlayerAimDirection.LEFT, _pressedValue.Get<float>() > 0.5);
     }
-    public void OnPlaceDown()
+    public void OnPlaceDown(InputValue _pressedValue)
     {
+        OnChangeTargetPlaceCheck(PlayerAimDirection.DOWN, _pressedValue.Get<float>() > 0.5);
+    }
+    public void OnPlaceRight(InputValue _pressedValue)
+    {
+        OnChangeTargetPlaceCheck(PlayerAimDirection.RIGHT, _pressedValue.Get<float>() > 0.5);
+    }
 
-        if (!grounded || shield || currentState != GameplayState.GAME) {return; }
-        if (blocksController.CheckBlockInDirection(placingLocation, Vector2Int.up)) { return; }
-        if (blocksController.CanPlaceBlock(placingLocation, 0.35f))
-        {
-            placingBlock = true;
-            placeCooldownCurrent = placeCooldownMax;
-            rb.velocity += new Vector2(0, -rb.velocity.y);
-            //rb.AddForce(Vector2.up * jumpForce);
-        }
-    }
-    public void OnPlaceRight()
+    public void OnStartGame()
     {
-        if (shield || currentState != GameplayState.GAME) return;
-        blocksController.CanPlaceBlock(placingLocation + new Vector2Int(1, -1));
+        if (currentGameState != GameplayState.LOBBY && currentGameState != GameplayState.RESULTS) return;
+        GameplayController.Instance.IncrementState(1);
     }
 
     public void OnShield(InputValue _pressedValue)
@@ -175,6 +231,22 @@ public class PlayerController : MonoBehaviour
         velocity = 0;
     }
 
+    public void OnChangeTargetPlaceCheck(PlayerAimDirection _targetDirection, bool _pressed)
+    {
+        if (!_pressed /*&& currentPlacingDirection == _targetDirection*/)
+        {
+            currentPlacingDirection = PlayerAimDirection.NONE;
+        }
+        else
+        {
+            currentPlacingDirection = _targetDirection;
+        }
+    }
+
+    public PlayerState ReturnPlayerState()
+    {
+        return currentPlayerState;
+    }
     public void UpdateColour(Color _color)
     {
         playerColour = _color;
@@ -187,17 +259,21 @@ public class PlayerController : MonoBehaviour
         // Draw a yellow sphere at the transform's position
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireCube(transform.position + boxCastLocation, boxCastSize);
+        Gizmos.color = playerColour;
+        switch (currentPlacingDirection)
+        {
+            case PlayerAimDirection.LEFT:
+                Gizmos.DrawWireCube(currentLocation + new Vector2(-1,-1), Vector2.one);
+                break;
+            case PlayerAimDirection.DOWN:
+                Gizmos.DrawWireCube(currentLocation + new Vector2(0, 0), Vector2.one);
+                break;
+            case PlayerAimDirection.RIGHT:
+                Gizmos.DrawWireCube(currentLocation + new Vector2(1, -1), Vector2.one);
+                break;
+            default:
+                break;
+        }
     }
 
-
-    //private void OnTriggerEnter2D(Collider2D collision)
-    //{
-    //    Debug.Log(collision.gameObject.name);
-    //    if (collision.transform.tag == "Goal")
-    //    {
-    //        Debug.Log("VictoryFound");
-    //        GameplayController.Instance.ChangeState(GameplayState.WIN);
-    //    }
-        
-    //}
 }
